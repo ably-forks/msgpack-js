@@ -412,7 +412,7 @@ function encode(value, buffer, offset) {
     buffer[offset] = 0xd4;
     buffer[offset + 1] = 0x00; // fixext special type/value
     buffer[offset + 2] = 0x00;
-    return 1;
+    return 3;
   }
 
   // null
