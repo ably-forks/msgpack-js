@@ -2,17 +2,47 @@
 
 var bops = require('bops');
 
-exports.encode = function (value) {
-  var toJSONed = []
-  var size = sizeof(value)
+exports.encode = function (value, sparse) {
+  var size = sizeof(value, sparse)
   if(size == 0)
     return undefined
   var buffer = bops.create(size);
-  encode(value, buffer, 0);
+  encode(value, buffer, 0, sparse);
   return buffer;
 };
 
 exports.decode = decode;
+
+var SH_L_32 = (1 << 16) * (1 << 16), SH_R_32 = 1 / SH_L_32;
+function readInt64BE(buf, offset) {
+	offset = offset || 0;
+	return buf.readInt32BE(offset + 0) * SH_L_32 + buf.readUInt32BE(offset + 4);
+}
+
+function readUInt64BE(buf, offset) {
+	offset = offset || 0;
+	return buf.readUInt32BE(offset + 0) * SH_L_32 + buf.readUInt32BE(offset + 4);
+}
+
+function writeInt64BE(buf, val, offset) {
+    if (val < 0x8000000000000000) {
+        buf.writeInt32BE(Math.floor(val * SH_R_32), offset);
+        buf.writeInt32BE(val & -1, offset + 4);
+    } else {
+        buf.writeUInt32BE(0x7fffffff, offset);
+        buf.writeUInt32BE(0xffffffff, offset + 4);
+    }
+}
+
+function writeUInt64BE(buf, val, offset) {
+    if (val < 0x10000000000000000) {
+        buf.writeUInt32BE(Math.floor(val * SH_R_32), offset);
+        buf.writeInt32BE(val & -1, offset + 4);
+    } else {
+        buf.writeUInt32BE(0xffffffff, offset);
+        buf.writeUInt32BE(0xffffffff, offset + 4);
+    }
+}
 
 // https://gist.github.com/frsyuki/5432559 - v5 spec
 //
@@ -161,7 +191,7 @@ Decoder.prototype.parse = function () {
     return value;
   // uint64
   case 0xcf:
-    value = bops.readUInt64BE(this.buffer, this.offset + 1);
+    value = readUInt64BE(this.buffer, this.offset + 1);
     this.offset += 9;
     return value;
   // int 8
@@ -181,7 +211,7 @@ Decoder.prototype.parse = function () {
     return value;
   // int 64
   case 0xd3:
-    value = bops.readInt64BE(this.buffer, this.offset + 1);
+    value = readInt64BE(this.buffer, this.offset + 1);
     this.offset += 9;
     return value;
 
@@ -267,13 +297,14 @@ function decode(buffer) {
   return value;
 }
 
-function encodeableKeys (value) {
+function encodeableKeys (value, sparse) {
   return Object.keys(value).filter(function (e) {
-    return 'function' !== typeof value[e] || !!value[e].toJSON
+    var val = value[e], type = typeof(val);
+    return (!sparse || (val !== undefined && val !== null)) && ('function' !== type || !!val.toJSON);
   })
 }
 
-function encode(value, buffer, offset) {
+function encode(value, buffer, offset, sparse) {
   var type = typeof value;
   var length, size;
 
@@ -337,7 +368,7 @@ function encode(value, buffer, offset) {
 
   if (type === "number") {
     // Floating Point
-    if ((value << 0) !== value) {
+    if (Math.floor(value) !== value) {
       buffer[offset] =  0xcb;
       bops.writeDoubleBE(buffer, value, offset + 1);
       return 9;
@@ -371,7 +402,7 @@ function encode(value, buffer, offset) {
       // uint 64
       if (value < 0x10000000000000000) {
         buffer[offset] = 0xcf;
-        bops.writeUInt64BE(buffer, value, offset + 1);
+        writeUInt64BE(buffer, value, offset + 1);
         return 9;
       }
       throw new Error("Number too big 0x" + value.toString(16));
@@ -402,13 +433,14 @@ function encode(value, buffer, offset) {
     // int 64
     if (value >= -0x8000000000000000) {
       buffer[offset] = 0xd3;
-      bops.writeInt64BE(buffer, value, offset + 1);
+      writeInt64BE(buffer, value, offset + 1);
       return 9;
     }
     throw new Error("Number too small -0x" + value.toString(16).substr(1));
   }
 
   if (type === "undefined") {
+    if(sparse) return 0;
     buffer[offset] = 0xd4;
     buffer[offset + 1] = 0x00; // fixext special type/value
     buffer[offset + 2] = 0x00;
@@ -417,6 +449,7 @@ function encode(value, buffer, offset) {
 
   // null
   if (value === null) {
+    if(sparse) return 0;
     buffer[offset] = 0xc0;
     return 1;
   }
@@ -428,7 +461,7 @@ function encode(value, buffer, offset) {
   }
 
   if('function' === typeof value.toJSON)
-    return encode(value.toJSON(), buffer, offset)
+    return encode(value.toJSON(), buffer, offset, sparse)
 
   // Container Types
   if (type === "object") {
@@ -440,7 +473,7 @@ function encode(value, buffer, offset) {
       length = value.length;
     }
     else {
-      var keys = encodeableKeys(value)
+      var keys = encodeableKeys(value, sparse)
       length = keys.length;
     }
 
@@ -464,14 +497,14 @@ function encode(value, buffer, offset) {
 
     if (isArray) {
       for (var i = 0; i < length; i++) {
-        size += encode(value[i], buffer, offset + size);
+        size += encode(value[i], buffer, offset + size, sparse);
       }
     }
     else {
       for (var i = 0; i < length; i++) {
         var key = keys[i];
         size += encode(key, buffer, offset + size);
-        size += encode(value[key], buffer, offset + size);
+        size += encode(value[key], buffer, offset + size, sparse);
       }
     }
 
@@ -482,7 +515,7 @@ function encode(value, buffer, offset) {
   throw new Error("Unknown type " + type);
 }
 
-function sizeof(value) {
+function sizeof(value, sparse) {
   var type = typeof value;
   var length, size;
 
@@ -520,7 +553,7 @@ function sizeof(value) {
   if (type === "number") {
     // Floating Point
     // double
-    if (value << 0 !== value) return 9;
+    if (Math.floor(value) !== value) return 9;
 
     // Integers
     if (value >=0) {
@@ -549,31 +582,32 @@ function sizeof(value) {
     throw new Error("Number too small -0x" + value.toString(16).substr(1));
   }
 
-  // Boolean, null
-  if (type === "boolean" || value === null) return 1;
-  if (type === 'undefined') return 3;
+  // Boolean
+  if (type === "boolean") return 1;
+
+  // undefined, null
+  if (value === null) return sparse ? 0 : 1;
+  if (value === undefined) return sparse ? 0 : 3;
 
   if('function' === typeof value.toJSON)
-    return sizeof(value.toJSON())
+    return sizeof(value.toJSON(), sparse)
 
   // Container Types
   if (type === "object") {
-    if('function' === typeof value.toJSON)
-      value = value.toJSON()
 
     size = 0;
     if (Array.isArray(value)) {
       length = value.length;
       for (var i = 0; i < length; i++) {
-        size += sizeof(value[i]);
+        size += sizeof(value[i], sparse);
       }
     }
     else {
-      var keys = encodeableKeys(value)
+      var keys = encodeableKeys(value, sparse)
       length = keys.length;
       for (var i = 0; i < length; i++) {
         var key = keys[i];
-        size += sizeof(key) + sizeof(value[key]);
+        size += sizeof(key) + sizeof(value[key], sparse);
       }
     }
     if (length < 0x10) {
