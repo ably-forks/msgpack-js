@@ -68,7 +68,7 @@ Decoder.prototype.map = function (length) {
   }
   return value;
 };
-Decoder.prototype.bin = function (length) {
+Decoder.prototype.bin = Decoder.prototype.buf = function (length) {
   var value = bops.subarray(this.buffer, this.offset, this.offset + length);
   this.offset += length;
   return value;
@@ -276,16 +276,6 @@ Decoder.prototype.parse = function () {
     length = bops.readUInt32BE(this.buffer, this.offset + 1);
     this.offset += 5;
     return this.map(length);
-  // buffer 16
-  case 0xd8:
-    length = bops.readUInt16BE(this.buffer, this.offset + 1);
-    this.offset += 3;
-    return this.buf(length);
-  // buffer 32
-  case 0xd9:
-    length = bops.readUInt32BE(this.buffer, this.offset + 1);
-    this.offset += 5;
-    return this.buf(length);
   }
 
   throw new Error("Unknown type 0x" + type.toString(16));
@@ -352,14 +342,14 @@ function encode(value, buffer, offset, sparse) {
     }
     // bin 16
     if (length < 0x10000) {
-      buffer[offset] = 0xd8;
+      buffer[offset] = 0xc5;
       bops.writeUInt16BE(buffer, length, offset + 1);
       bops.copy(value, buffer, offset + 3);
       return 3 + length;
     }
     // bin 32
     if (length < 0x100000000) {
-      buffer[offset] = 0xd9;
+      buffer[offset] = 0xc6;
       bops.writeUInt32BE(buffer, length, offset + 1);
       bops.copy(value, buffer, offset + 5);
       return 5 + length;
