@@ -1,7 +1,9 @@
 "use strict";
 var bops = require('bops');
 var test = require('tape');
-var msgpack = require('./msgpack');
+var msgpackBuffer = require('./msgpack-buffer');
+var msgpackTypedArray = require('./msgpack-typedarray');
+var msgpackBops = require('./msgpack-bops');
 var util = require('util');
 
 var tests = [
@@ -18,14 +20,80 @@ var tests = [
   {a: 1, b: 2, c: [1, 2, 3]}
 ];
 
-test('codec works as expected', function(assert) {
+test('encode to buffer works as expected', function(assert) {
 
   tests.forEach(function (input) {
-    var packed = msgpack.encode(input);
+    var packed = msgpackBuffer.encode(input);
     console.log(packed);
-    var output = msgpack.decode(packed);
+    var output = msgpackBops.decode(packed);
     if (bops.is(input)) {
       assert.true(bops.is(output));
+      for (var i = 0, l = input.length; i < l; i++) {
+        assert.equal(input[i], output[i]);
+      }
+      assert.equal(input.length, output.length);
+    }
+    else {
+      assert.deepEqual(input, output);
+    }
+  });
+
+  assert.end();
+
+});
+
+test('encode to typedarray works as expected', function(assert) {
+
+  tests.forEach(function (input) {
+    var packed = msgpackTypedArray.encode(input);
+    console.log(packed);
+    var output = msgpackBops.decode(Buffer.from(packed));
+    if (bops.is(input)) {
+      assert.true(bops.is(output));
+      for (var i = 0, l = input.length; i < l; i++) {
+        assert.equal(input[i], output[i]);
+      }
+      assert.equal(input.length, output.length);
+    }
+    else {
+      assert.deepEqual(input, output);
+    }
+  });
+
+  assert.end();
+
+});
+
+test('decode from buffer works as expected', function(assert) {
+
+  tests.forEach(function (input) {
+    var packed = msgpackBops.encode(input);
+    console.log(packed);
+    var output = msgpackBuffer.decode(packed);
+    if (Buffer.isBuffer(input)) {
+      assert.true(Buffer.isBuffer(output));
+      for (var i = 0, l = input.length; i < l; i++) {
+        assert.equal(input[i], output[i]);
+      }
+      assert.equal(input.length, output.length);
+    }
+    else {
+      assert.deepEqual(input, output);
+    }
+  });
+
+  assert.end();
+
+});
+
+test('decode from typedarray works as expected', function(assert) {
+
+  tests.forEach(function (input) {
+    var packed = msgpackBops.encode(input);
+    console.log(packed);
+    var output = msgpackTypedArray.decode(packed);
+    if (input instanceof Uint8Array) {
+      assert.true(output instanceof Uint8Array);
       for (var i = 0, l = input.length; i < l; i++) {
         assert.equal(input[i], output[i]);
       }
@@ -69,7 +137,7 @@ var jsonLikes = [
 test('treats functions same as json', function (assert) {
   jsonLikes.forEach(function (input) {
     assert.deepEqual(
-      msgpack.decode(msgpack.encode(input)),
+      msgpackBuffer.decode(msgpackBuffer.encode(input)),
       JSON.parse(JSON.stringify(input)),
       util.inspect(input)
     )
@@ -79,6 +147,6 @@ test('treats functions same as json', function (assert) {
 
 test('returns undefined for a function', function (assert) {
   function noop () {}
-  assert.equal(msgpack.encode(noop), JSON.stringify(noop))
+  assert.equal(msgpackBuffer.encode(noop), JSON.stringify(noop))
   assert.end()
 })

@@ -9,9 +9,9 @@
   },
   "main": "msgpack.js",
   "dependencies": {
-    "bops": "~0.0.6"
   },
   "devDependencies": {
+    "bops": "~0.0.6",
     "tape": "~1.0.2"
   },
   "scripts": {
