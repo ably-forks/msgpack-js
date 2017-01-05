@@ -1,6 +1,6 @@
 "use strict";
 
-if(typeof('Buffer') !== 'undefined) {
+if(typeof('Buffer') !== 'undefined') {
 	exports.encode = require('./msgpack-buffer.js').encode;
 	exports.decode = require('./msgpack-buffer.js').decode;
 } else {
