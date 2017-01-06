@@ -1,9 +1,15 @@
 "use strict";
 
+exports.encodeToBuffer = require('./msgpack-buffer.js').encode;
+exports.decodeFromBuffer = require('./msgpack-buffer.js').decode;
+
+exports.encodeToArrayBufffer = require('./msgpack-typedarray.js').encode;
+exports.decodeFromArrayBuffer = require('./msgpack-typedarray.js').decode;
+
 if(typeof('Buffer') !== 'undefined') {
-	exports.encode = require('./msgpack-buffer.js').encode;
-	exports.decode = require('./msgpack-buffer.js').decode;
+	exports.encode = exports.encodeToBuffer;
+	exports.decode = exports.decodeFromBuffer;
 } else {
-	exports.encode = require('./msgpack-typedarray.js').encode;
-	exports.decode = require('./msgpack-typedarray.js').decode;
+	exports.encode = exports.encodeToArrayBufffer;
+	exports.decode = exports.decodeFromArrayBuffer;
 }
