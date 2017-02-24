@@ -1,11 +1,11 @@
 "use strict";
 
-exports.encode = function (value, sparse) {
-  var size = sizeof(value, sparse)
+exports.encode = function (value) {
+  var size = sizeof(value)
   if(size == 0)
     return undefined
   var buffer = new Buffer(size);
-  encode(value, buffer, 0, sparse);
+  encode(value, buffer, 0);
   return buffer;
 };
 
@@ -285,14 +285,14 @@ function decode(buffer) {
   return value;
 }
 
-function encodeableKeys (value, sparse) {
+function encodeableKeys (value) {
   return Object.keys(value).filter(function (e) {
-    var val = value[e], type = typeof(val);
-    return (!sparse || (val !== undefined && val !== null)) && ('function' !== type || !!val.toJSON);
+    var val = value[e];
+    return (val !== undefined) && ('function' !== typeof(val) || !!val.toJSON);
   })
 }
 
-function encode(value, buffer, offset, sparse) {
+function encode(value, buffer, offset) {
   var type = typeof value;
   var length, size;
 
@@ -428,16 +428,11 @@ function encode(value, buffer, offset, sparse) {
   }
 
   if (type === "undefined") {
-    if(sparse) return 0;
-    buffer[offset] = 0xd4;
-    buffer[offset + 1] = 0x00; // fixext special type/value
-    buffer[offset + 2] = 0x00;
-    return 3;
+    return 0;
   }
 
   // null
   if (value === null) {
-    if(sparse) return 0;
     buffer[offset] = 0xc0;
     return 1;
   }
@@ -449,7 +444,7 @@ function encode(value, buffer, offset, sparse) {
   }
 
   if('function' === typeof value.toJSON)
-    return encode(value.toJSON(), buffer, offset, sparse)
+    return encode(value.toJSON(), buffer, offset)
 
   // Container Types
   if (type === "object") {
@@ -461,7 +456,7 @@ function encode(value, buffer, offset, sparse) {
       length = value.length;
     }
     else {
-      var keys = encodeableKeys(value, sparse)
+      var keys = encodeableKeys(value)
       length = keys.length;
     }
 
@@ -485,14 +480,14 @@ function encode(value, buffer, offset, sparse) {
 
     if (isArray) {
       for (var i = 0; i < length; i++) {
-        size += encode(value[i], buffer, offset + size, sparse);
+        size += encode(value[i], buffer, offset + size);
       }
     }
     else {
       for (var i = 0; i < length; i++) {
         var key = keys[i];
         size += encode(key, buffer, offset + size);
-        size += encode(value[key], buffer, offset + size, sparse);
+        size += encode(value[key], buffer, offset + size);
       }
     }
 
@@ -503,7 +498,7 @@ function encode(value, buffer, offset, sparse) {
   throw new Error("Unknown type " + type);
 }
 
-function sizeof(value, sparse) {
+function sizeof(value) {
   var type = typeof value;
   var length, size;
 
@@ -574,11 +569,11 @@ function sizeof(value, sparse) {
   if (type === "boolean") return 1;
 
   // undefined, null
-  if (value === null) return sparse ? 0 : 1;
-  if (value === undefined) return sparse ? 0 : 3;
+  if (value === null) return 1;
+  if (value === undefined) return 0;
 
   if('function' === typeof value.toJSON)
-    return sizeof(value.toJSON(), sparse)
+    return sizeof(value.toJSON())
 
   // Container Types
   if (type === "object") {
@@ -587,15 +582,15 @@ function sizeof(value, sparse) {
     if (Array.isArray(value)) {
       length = value.length;
       for (var i = 0; i < length; i++) {
-        size += sizeof(value[i], sparse);
+        size += sizeof(value[i]);
       }
     }
     else {
-      var keys = encodeableKeys(value, sparse)
+      var keys = encodeableKeys(value)
       length = keys.length;
       for (var i = 0; i < length; i++) {
         var key = keys[i];
-        size += sizeof(key) + sizeof(value[key], sparse);
+        size += sizeof(key) + sizeof(value[key]);
       }
     }
     if (length < 0x10) {

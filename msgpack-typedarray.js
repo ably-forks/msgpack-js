@@ -95,15 +95,14 @@ function utf8ByteCount(string) {
 /**
  * encode an JS value into an ArrayBuffer
  * @param value: the JS value to encode
- * @param sparse (optional, default false): do not output undefined or null values
  */
-exports.encode = function(value, sparse) {
-	var size = sizeof(value, sparse);
+exports.encode = function(value) {
+	var size = sizeof(value);
 	if(size == 0)
 		return undefined;
 	var buffer = new ArrayBuffer(size);
 	var view = new DataView(buffer);
-	encode(value, view, 0, sparse);
+	encode(value, view, 0);
 	return buffer;
 };
 
@@ -457,10 +456,10 @@ function decode(buffer, offset, length, nodeBuffers) {
 	return value;
 }
 
-function encodeableKeys(value, sparse) {
+function encodeableKeys(value) {
 	return Object.keys(value, true).filter(function (e) {
-		var val = value[e], type = typeof(val);
-		return (!sparse || (val !== undefined && val !== null)) && ('function' !== type || !!val.toJSON);
+		var val = value[e];
+		return (val !== undefined) && ('function' !== typeof(val) || !!val.toJSON);
 	})
 }
 
@@ -469,9 +468,8 @@ function encodeableKeys(value, sparse) {
  * @param value: the JS value to encode
  * @param view: the DataView
  * @param offset (optional): the offset into the View to start encoding
- * @param sparse (optional, default false): do not output undefined or null values
  */
-function encode(value, view, offset, sparse) {
+function encode(value, view, offset) {
 	var type = typeof value;
 
 	// Strings Bytes
@@ -615,18 +613,12 @@ function encode(value, view, offset, sparse) {
 		throw new Error("Number too small -0x" + (-value).toString(16).substr(1));
 	}
 
-	// undefined - use d4 (NON-STANDARD)
 	if (type === "undefined") {
-		if(sparse) return 0;
-		view.setUint8(offset, 0xd4);
-		view.setUint8(offset + 1, 0x00);
-		view.setUint8(offset + 2, 0x00);
-		return 3;
+		return 0;
 	}
 
 	// null
 	if (value === null) {
-		if(sparse) return 0;
 		view.setUint8(offset, 0xc0);
 		return 1;
 	}
@@ -638,7 +630,7 @@ function encode(value, view, offset, sparse) {
 	}
 
 	if('function' === typeof value.toJSON)
-		return encode(value.toJSON(), view, offset, sparse);
+		return encode(value.toJSON(), view, offset);
 
 	// Container Types
 	if (type === "object") {
@@ -648,7 +640,7 @@ function encode(value, view, offset, sparse) {
 		if (isArray) {
 			length = value.length;
 		} else {
-			var keys = encodeableKeys(value, sparse);
+			var keys = encodeableKeys(value);
 			length = keys.length;
 		}
 
@@ -668,13 +660,13 @@ function encode(value, view, offset, sparse) {
 
 		if (isArray) {
 			for (var i = 0; i < length; i++) {
-				size += encode(value[i], view, offset + size, sparse);
+				size += encode(value[i], view, offset + size);
 			}
 		} else {
 			for (var i = 0; i < length; i++) {
 				var key = keys[i];
 				size += encode(key, view, offset + size);
-				size += encode(value[key], view, offset + size, sparse);
+				size += encode(value[key], view, offset + size);
 			}
 		}
 
@@ -686,7 +678,7 @@ function encode(value, view, offset, sparse) {
 	throw new Error("Unknown type " + type);
 }
 
-function sizeof(value, sparse) {
+function sizeof(value) {
 	var type = typeof value;
 
 	// fixstr or str8 or str16 or str32
@@ -769,11 +761,11 @@ function sizeof(value, sparse) {
 	if (type === "boolean") return 1;
 
 	// undefined, null
-	if (value === null) return sparse ? 0 : 1;
-	if (value === undefined) return sparse ? 0 : 3;
+	if (value === null) return 1;
+	if (value === undefined) return 0;
 
 	if('function' === typeof value.toJSON)
-		return sizeof(value.toJSON(), sparse);
+		return sizeof(value.toJSON());
 
 	// Container Types
 	if (type === "object") {
@@ -781,14 +773,14 @@ function sizeof(value, sparse) {
 		if (Array.isArray(value)) {
 			length = value.length;
 			for (var i = 0; i < length; i++) {
-				size += sizeof(value[i], sparse);
+				size += sizeof(value[i]);
 			}
 		} else {
-			var keys = encodeableKeys(value, sparse)
+			var keys = encodeableKeys(value)
 			length = keys.length;
 			for (var i = 0; i < length; i++) {
 				var key = keys[i];
-				size += sizeof(key) + sizeof(value[key], sparse);
+				size += sizeof(key) + sizeof(value[key]);
 			}
 		}
 		if (length < 0x10) {
