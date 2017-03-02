@@ -504,8 +504,7 @@ function sizeof(value) {
 
   // Raw Bytes
   if (type === "string") {
-    // TODO: this creates a throw-away buffer which is probably expensive on browsers.
-    length = value.toString('utf-8').length;
+    length = Buffer.byteLength(value);
     if (length < 0x20) {
       return 1 + length;
     }

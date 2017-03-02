@@ -5,6 +5,14 @@ var msgpackTypedArray = require('./msgpack-typedarray');
 var msgpackBops = require('./msgpack-bops');
 var util = require('util');
 
+function filledBuffer(length) {
+  var buf = new Buffer(length);
+  for(var i = 0; i < buf.length; i++) {
+    buf[i] = i % 0x10;
+  }
+  return buf;
+}
+
 var tests = [
   true, false, null,
   0, 1, -1, 2, -2, 4, -4, 6, -6,
@@ -14,8 +22,9 @@ var tests = [
   0x20000, -0x20000, 0x40000,-0x40000,
   10, 100, 1000, 10000, 100000, 1000000,
   -10, -100, -1000, -10000, -100000, -1000000,
-  'hello', 'world',
+  'hello', 'world', "søme string",
   Buffer.from('Hello'), Buffer.from('World'),
+  filledBuffer(0xff), filledBuffer(0xffff), filledBuffer(0x10000),
   [1,2,3], [], {name: "Tim", age: 29}, {},
   {a: 1, b: 2, c: [1, 2, 3]}
 ];
