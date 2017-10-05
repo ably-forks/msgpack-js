@@ -62,7 +62,8 @@ function Decoder(buffer, offset) {
   this.bufferLength = buffer.length
 }
 Decoder.prototype.map = function (length) {
-  if(length > this.bufferLength) {
+  /* minimal map: every key and value is one byte */
+  if((length * 2) > this.bufferLength) {
     throw new Error(`malformed messagepack detected: buffer size was ${this.bufferLength}, but referenced a map of length ${length})`);
   }
   var value = {};
@@ -101,6 +102,11 @@ Decoder.prototype.array = function (length) {
 Decoder.prototype.parse = function () {
   var type = this.buffer[this.offset];
   var value, length, extType;
+
+  if (type === undefined) {
+    throw new Error('malformed messagepack (referenced offset is outside buffer)');
+  }
+
   // Positive FixInt
   if ((type & 0x80) === 0x00) {
     this.offset++;
