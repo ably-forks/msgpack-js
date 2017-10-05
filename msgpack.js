@@ -313,7 +313,7 @@ function encodeableKeys (value, sparse) {
   })
 }
 
-function encode(value, buffer, offset, sparse) {
+function encode(value, buffer, offset, sparse, isMapElement) {
   var type = typeof value;
   var length, size;
 
@@ -449,7 +449,7 @@ function encode(value, buffer, offset, sparse) {
   }
 
   if (type === "undefined") {
-    if(sparse) return 0;
+    if(sparse && isMapElement) return 0;
     buffer[offset] = 0xd4;
     buffer[offset + 1] = 0x00; // fixext special type/value
     buffer[offset + 2] = 0x00;
@@ -458,7 +458,7 @@ function encode(value, buffer, offset, sparse) {
 
   // null
   if (value === null) {
-    if(sparse) return 0;
+    if(sparse && isMapElement) return 0;
     buffer[offset] = 0xc0;
     return 1;
   }
@@ -513,7 +513,7 @@ function encode(value, buffer, offset, sparse) {
       for (var i = 0; i < length; i++) {
         var key = keys[i];
         size += encode(key, buffer, offset + size);
-        size += encode(value[key], buffer, offset + size, sparse);
+        size += encode(value[key], buffer, offset + size, sparse, true);
       }
     }
 
@@ -524,7 +524,7 @@ function encode(value, buffer, offset, sparse) {
   throw new Error("Unknown type " + type);
 }
 
-function sizeof(value, sparse) {
+function sizeof(value, sparse, isMapElement) {
   var type = typeof value;
   var length, size;
 
@@ -595,8 +595,8 @@ function sizeof(value, sparse) {
   if (type === "boolean") return 1;
 
   // undefined, null
-  if (value === null) return sparse ? 0 : 1;
-  if (value === undefined) return sparse ? 0 : 3;
+  if (value === null) return (sparse && isMapElement) ? 0 : 1;
+  if (value === undefined) return (sparse && isMapElement) ? 0 : 3;
 
   if('function' === typeof value.toJSON)
     return sizeof(value.toJSON(), sparse)
@@ -616,7 +616,7 @@ function sizeof(value, sparse) {
       length = keys.length;
       for (var i = 0; i < length; i++) {
         var key = keys[i];
-        size += sizeof(key) + sizeof(value[key], sparse);
+        size += sizeof(key) + sizeof(value[key], sparse, true);
       }
     }
     if (length < 0x10) {

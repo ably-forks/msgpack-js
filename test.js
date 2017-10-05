@@ -82,3 +82,12 @@ test('returns undefined for a function', function (assert) {
   assert.equal(msgpack.encode(noop), JSON.stringify(noop))
   assert.end()
 })
+
+test('sparse flag discards undefined values in objects; keeps them in arrays', function (assert) {
+  const input = [undefined, {a: 'b', 'c': undefined}, undefined];
+  const output = msgpack.decode(msgpack.encode(input, true));
+  assert.equal(output[0], undefined);
+  assert.equal(output.length, 3);
+  assert.deepEqual(output[1], {a: 'b'});
+  assert.end()
+})
