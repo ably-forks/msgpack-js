@@ -59,8 +59,12 @@ function writeUInt64BE(buf, val, offset) {
 function Decoder(buffer, offset) {
   this.offset = offset || 0;
   this.buffer = buffer;
+  this.bufferLength = buffer.length
 }
 Decoder.prototype.map = function (length) {
+  if(length > this.bufferLength) {
+    throw new Error(`malformed messagepack detected: buffer size was ${this.bufferLength}, but referenced a map of length ${length})`);
+  }
   var value = {};
   for (var i = 0; i < length; i++) {
     var key = this.parse();
@@ -69,16 +73,25 @@ Decoder.prototype.map = function (length) {
   return value;
 };
 Decoder.prototype.bin = Decoder.prototype.buf = function (length) {
+  if(length > this.bufferLength) {
+    throw new Error(`malformed messagepack detected: buffer size was ${this.bufferLength}, but referenced a binary of length ${length})`);
+  }
   var value = bops.subarray(this.buffer, this.offset, this.offset + length);
   this.offset += length;
   return value;
 };
 Decoder.prototype.str = function (length) {
+  if(length > this.bufferLength) {
+    throw new Error(`malformed messagepack detected: buffer size was ${this.bufferLength}, but referenced a string of length ${length})`);
+  }
   var value = bops.to(bops.subarray(this.buffer, this.offset, this.offset + length));
   this.offset += length;
   return value;
 };
 Decoder.prototype.array = function (length) {
+  if(length > this.bufferLength) {
+    throw new Error(`malformed messagepack detected: buffer size was ${this.bufferLength}, but referenced an array of length ${length})`);
+  }
   var value = new Array(length);
   for (var i = 0; i < length; i++) {
     value[i] = this.parse();
