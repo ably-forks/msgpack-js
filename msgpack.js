@@ -59,8 +59,13 @@ function writeUInt64BE(buf, val, offset) {
 function Decoder(buffer, offset) {
   this.offset = offset || 0;
   this.buffer = buffer;
+  this.bufferLength = buffer.length
 }
 Decoder.prototype.map = function (length) {
+  /* minimal map: every key and value is one byte */
+  if((length * 2) > this.bufferLength) {
+    throw new Error(`malformed messagepack detected: buffer size was ${this.bufferLength}, but referenced a map of length ${length})`);
+  }
   var value = {};
   for (var i = 0; i < length; i++) {
     var key = this.parse();
@@ -69,16 +74,25 @@ Decoder.prototype.map = function (length) {
   return value;
 };
 Decoder.prototype.bin = Decoder.prototype.buf = function (length) {
+  if(length > this.bufferLength) {
+    throw new Error(`malformed messagepack detected: buffer size was ${this.bufferLength}, but referenced a binary of length ${length})`);
+  }
   var value = bops.subarray(this.buffer, this.offset, this.offset + length);
   this.offset += length;
   return value;
 };
 Decoder.prototype.str = function (length) {
+  if(length > this.bufferLength) {
+    throw new Error(`malformed messagepack detected: buffer size was ${this.bufferLength}, but referenced a string of length ${length})`);
+  }
   var value = bops.to(bops.subarray(this.buffer, this.offset, this.offset + length));
   this.offset += length;
   return value;
 };
 Decoder.prototype.array = function (length) {
+  if(length > this.bufferLength) {
+    throw new Error(`malformed messagepack detected: buffer size was ${this.bufferLength}, but referenced an array of length ${length})`);
+  }
   var value = new Array(length);
   for (var i = 0; i < length; i++) {
     value[i] = this.parse();
@@ -88,6 +102,11 @@ Decoder.prototype.array = function (length) {
 Decoder.prototype.parse = function () {
   var type = this.buffer[this.offset];
   var value, length, extType;
+
+  if (type === undefined) {
+    throw new Error('malformed messagepack (referenced offset is outside buffer)');
+  }
+
   // Positive FixInt
   if ((type & 0x80) === 0x00) {
     this.offset++;
@@ -294,7 +313,7 @@ function encodeableKeys (value, sparse) {
   })
 }
 
-function encode(value, buffer, offset, sparse) {
+function encode(value, buffer, offset, sparse, isMapElement) {
   var type = typeof value;
   var length, size;
 
@@ -430,7 +449,7 @@ function encode(value, buffer, offset, sparse) {
   }
 
   if (type === "undefined") {
-    if(sparse) return 0;
+    if(sparse && isMapElement) return 0;
     buffer[offset] = 0xd4;
     buffer[offset + 1] = 0x00; // fixext special type/value
     buffer[offset + 2] = 0x00;
@@ -439,7 +458,7 @@ function encode(value, buffer, offset, sparse) {
 
   // null
   if (value === null) {
-    if(sparse) return 0;
+    if(sparse && isMapElement) return 0;
     buffer[offset] = 0xc0;
     return 1;
   }
@@ -494,7 +513,7 @@ function encode(value, buffer, offset, sparse) {
       for (var i = 0; i < length; i++) {
         var key = keys[i];
         size += encode(key, buffer, offset + size);
-        size += encode(value[key], buffer, offset + size, sparse);
+        size += encode(value[key], buffer, offset + size, sparse, true);
       }
     }
 
@@ -505,7 +524,7 @@ function encode(value, buffer, offset, sparse) {
   throw new Error("Unknown type " + type);
 }
 
-function sizeof(value, sparse) {
+function sizeof(value, sparse, isMapElement) {
   var type = typeof value;
   var length, size;
 
@@ -576,8 +595,8 @@ function sizeof(value, sparse) {
   if (type === "boolean") return 1;
 
   // undefined, null
-  if (value === null) return sparse ? 0 : 1;
-  if (value === undefined) return sparse ? 0 : 3;
+  if (value === null) return (sparse && isMapElement) ? 0 : 1;
+  if (value === undefined) return (sparse && isMapElement) ? 0 : 3;
 
   if('function' === typeof value.toJSON)
     return sizeof(value.toJSON(), sparse)
@@ -597,7 +616,7 @@ function sizeof(value, sparse) {
       length = keys.length;
       for (var i = 0; i < length; i++) {
         var key = keys[i];
-        size += sizeof(key) + sizeof(value[key], sparse);
+        size += sizeof(key) + sizeof(value[key], sparse, true);
       }
     }
     if (length < 0x10) {
