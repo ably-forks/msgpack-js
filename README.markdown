@@ -1,51 +1,19 @@
-# MSGPACK-JS-V5
+# msgpack-js
 
-**Please see the [original README.md][1] from the source repository for more
-information.**
+This is a second-generation fork of msgpack-js.
 
-This is a port of [creationix/msgpack-js][0] to support the new MsgPack v5
-specification.
+Original version: [creationix/msgpack-js](https://github.com/creationix/msgpack-js)
 
-* New spec: https://github.com/msgpack/msgpack/blob/master/spec.md
-* Old spec: https://github.com/msgpack/msgpack/blob/master/spec-old.md
+First fork: [chakrit/msgpack-js](https://github.com/chakrit/msgpack-js), porting to msgpack v5
 
-Please feel free to open issues/pull requests for support/discussion.
+Second fork: [paddybyers](https://github.com/paddybyers/) at [ably-forks/msgpack-js](https://github.com/ably-forks/msgpack-js), adding a 'sparse' encoding option, updating buffer handling, adding some extra guards and safety checks, and other fixes.
 
-# INSTALL
+## Installing
 
 ```sh
-$ npm i msgpack-js-v5 --save
+$ npm i @ably/msgpack-js
 ```
 
-# EXTENSION
+## Publishing
 
-Since there is no way to encode `undefined` inside the msgpack spec, an extension point is
-used for this purpose. Specifically, the `fixext 1` type is used with all values being 0
-to indicate `undefined`. On the wire, it requires 3 bytes and should looks like this:
-
-```
-0xd4 | 0x00 | 0x00
-```
-
-Where `|` is byte separator.
-
-# EXT / FIXEXT
-
-Extensions are encoded/decoded to and from a simple 2-elements array tuple of the form
-`[type, Buffer]`. Where `type` is the msgpack extension type identifier and `Buffer` is
-the raw decoded value.
-
-Special case for `fixext 1` since it will always be 1-byte long a simple `[type, value]`
-is returned directly instead of wrapping it in node.js `Buffer`.
-
-# VERSIONING
-
-This package will follows `msgpack-js` version for the time being. The version string will
-simply be appended with `v5`.
-
-If and when this package diverges from the original, we can start our own versioning. Or
-this module could just be merged into the original `msgpack-js` module.
-
- [0]: https://github.com/creationix/msgpack-js
- [1]: https://github.com/creationix/msgpack-js/blob/master/README.markdown
-
+Please publish to npm from the `npm` branch; the `master` branch keeps the `msgpack-js` name (as opposed to `@ably/msgpack-js`) for backwards compatibility with clients that fetch this dependence from github
