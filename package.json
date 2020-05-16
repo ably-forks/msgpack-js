@@ -1,12 +1,14 @@
 {
-  "author": "Tim Caswell <tim@creationix.com>",
   "name": "msgpack-js",
   "description": "msgpack encoder and decoder in pure javascript based on creationix/msgpack-js updated to match the new v5 specification with string support.",
+  "license": "Apache-2.0",
   "version": "0.3.2-v5",
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/ably-forks/msgpack-js.git"
-  },
+  "author": "Ably Real-time Ltd <support@ably.io>",
+  "contributors": [
+    "Tim Caswell <tim@creationix.com>",
+    "Chakrit Wichian <service@chakrit.net>"
+  ],
+  "repository": "ably-forks/msgpack-js",
   "main": "msgpack.js",
   "dependencies": {
     "bops": "~0.0.6"
