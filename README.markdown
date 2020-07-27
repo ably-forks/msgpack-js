@@ -13,7 +13,3 @@ Second fork: [paddybyers](https://github.com/paddybyers/) at [ably-forks/msgpack
 ```sh
 $ npm i @ably/msgpack-js
 ```
-
-## Publishing
-
-Please publish to npm from the `npm` branch; the `master` branch keeps the `msgpack-js` name (as opposed to `@ably/msgpack-js`) for backwards compatibility with clients that fetch this dependence from github
