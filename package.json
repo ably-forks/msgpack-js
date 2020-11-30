@@ -11,7 +11,7 @@
   "repository": "ably-forks/msgpack-js",
   "main": "msgpack.js",
   "dependencies": {
-    "bops": "~0.0.6"
+    "bops": "^1.0.1"
   },
   "devDependencies": {
     "tape": "~1.0.2"
