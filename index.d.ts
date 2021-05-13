@@ -1,3 +1,2 @@
-export function encode(value: unknown, sparse?: boolean): ArrayBuffer; 
-
-export function decode(buffer: ArrayBuffer);
+export function encode(value: any, sparse?: boolean): Buffer;
+export function decode(buffer: Buffer): any;
