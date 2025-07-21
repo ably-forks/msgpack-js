@@ -414,7 +414,10 @@ function encode(value, buffer, offset, sparse, isMapElement) {
         writeUInt64BE(buffer, value, offset + 1);
         return 9;
       }
-      throw new Error("Number too big 0x" + value.toString(16));
+      // bigger than representable as uint64, so fallback to double
+      buffer[offset] =  0xcb;
+      bops.writeDoubleBE(buffer, value, offset + 1);
+      return 9;
     }
     // negative fixnum
     if (value >= -0x20) {
@@ -445,7 +448,10 @@ function encode(value, buffer, offset, sparse, isMapElement) {
       writeInt64BE(buffer, value, offset + 1);
       return 9;
     }
-    throw new Error("Number too small -0x" + value.toString(16).substr(1));
+    // bigger than representable as uint64, so fallback to double
+    buffer[offset] =  0xcb;
+    bops.writeDoubleBE(buffer, value, offset + 1);
+    return 9;
   }
 
   if (type === "undefined") {
@@ -576,7 +582,8 @@ function sizeof(value, sparse, isMapElement) {
       if (value < 0x100000000) return 5;
       // uint 64
       if (value < 0x10000000000000000) return 9;
-      throw new Error("Number too big 0x" + value.toString(16));
+      // fallback to double
+      return 9
     }
     // negative fixnum
     if (value >= -0x20) return 1;
@@ -588,7 +595,8 @@ function sizeof(value, sparse, isMapElement) {
     if (value >= -0x80000000) return 5;
     // int 64
     if (value >= -0x8000000000000000) return 9;
-    throw new Error("Number too small -0x" + value.toString(16).substr(1));
+    // fallback to double
+    return 9
   }
 
   // Boolean

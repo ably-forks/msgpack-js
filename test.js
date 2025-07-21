@@ -91,3 +91,10 @@ test('sparse flag discards undefined values in objects; keeps them in arrays', f
   assert.deepEqual(output[1], {a: 'b'});
   assert.end()
 })
+
+test('Can encode large floats', function (assert) {
+  const input = 1.7e+308
+  const output = msgpack.decode(msgpack.encode(input, true));
+  assert.equal(input, output);
+  assert.end()
+})
