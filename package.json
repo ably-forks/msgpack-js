@@ -8,7 +8,10 @@
     "Tim Caswell <tim@creationix.com>",
     "Chakrit Wichian <service@chakrit.net>"
   ],
-  "repository": "ably-forks/msgpack-js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ably-forks/msgpack-js.git"
+  },
   "main": "msgpack.js",
   "dependencies": {
     "bops": "^1.0.1"
