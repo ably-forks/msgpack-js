@@ -46,14 +46,22 @@ function writeUInt64BE(buf, val, offset) {
 
 // https://gist.github.com/frsyuki/5432559 - v5 spec
 //
-// I've used one extension point from `fixext 1` to store `undefined`. On the wire this
-// should translate to exactly 0xd40000 
+// undefined handling:
 //
-// +--------+--------+--------+
-// |  0xd4  |  0x00  |  0x00  |
-// +--------+--------+--------+
-//    ^ fixext |        ^ value part unused (fixed to be 0)
-//             ^ indicates undefined value
+// Previously, `undefined` was encoded using a custom fixext 1 extension
+// (0xd4 0x00 0x00). This is non-standard msgpack and causes decode failures
+// in other languages' msgpack decoders (e.g. Go's vmihailenco/msgpack),
+// which don't recognise extension type 0 and reject the payload with a
+// "cannot decode" error.
+//
+// `undefined` is now encoded as nil (0xc0), the standard msgpack
+// representation of "no value". This matches JSON.stringify's behaviour
+// of collapsing undefined to null, and is understood by every conforming
+// msgpack decoder.
+//
+// The decoder still accepts the legacy fixext 1 encoding (0xd4 0x00 0x00)
+// so that data written by older versions can still be read. New data will
+// always use nil.
 //
 
 function Decoder(buffer, offset) {
@@ -234,7 +242,10 @@ Decoder.prototype.parse = function () {
     this.offset += 9;
     return value;
 
-  // fixext 1 / undefined
+  // fixext 1 — legacy encoding for undefined (0xd4 0x00 0x00).
+  // New versions encode undefined as nil (0xc0), but we still accept the
+  // old fixext 1 format here for backwards compatibility with data that was
+  // written by previous versions of this library.
   case 0xd4:
     extType = bops.readUInt8(this.buffer, this.offset + 1);
     value = bops.readUInt8(this.buffer, this.offset + 2);
@@ -454,12 +465,15 @@ function encode(value, buffer, offset, sparse, isMapElement) {
     return 9;
   }
 
+  // undefined → nil (0xc0). This uses the standard msgpack nil type rather
+  // than the legacy fixext 1 encoding (0xd4 0x00 0x00) which is not
+  // recognised by non-JS msgpack decoders (Go, Python, Ruby, etc.).
+  // On decode, nil returns null — matching JSON.stringify/parse behaviour
+  // where undefined is not a round-trippable value.
   if (type === "undefined") {
     if(sparse && isMapElement) return 0;
-    buffer[offset] = 0xd4;
-    buffer[offset + 1] = 0x00; // fixext special type/value
-    buffer[offset + 2] = 0x00;
-    return 3;
+    buffer[offset] = 0xc0;
+    return 1;
   }
 
   // null
@@ -602,9 +616,9 @@ function sizeof(value, sparse, isMapElement) {
   // Boolean
   if (type === "boolean") return 1;
 
-  // undefined, null
+  // undefined and null both encode as nil (0xc0), 1 byte
   if (value === null) return (sparse && isMapElement) ? 0 : 1;
-  if (value === undefined) return (sparse && isMapElement) ? 0 : 3;
+  if (value === undefined) return (sparse && isMapElement) ? 0 : 1;
 
   if('function' === typeof value.toJSON)
     return sizeof(value.toJSON(), sparse)
